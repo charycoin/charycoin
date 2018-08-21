@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2018 The Bitcoin Core developers
+// Copyright (c) 2009-2015 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -10,14 +10,15 @@
 #ifndef BITCOIN_PROTOCOL_H
 #define BITCOIN_PROTOCOL_H
 
-#include <netaddress.h>
-#include <serialize.h>
-#include <uint256.h>
-#include <version.h>
+#include "netaddress.h"
+#include "serialize.h"
+#include "uint256.h"
+#include "version.h"
 
-#include <atomic>
 #include <stdint.h>
 #include <string>
+
+#define MESSAGE_START_SIZE 4
 
 /** Message header.
  * (4) message start.
@@ -28,16 +29,9 @@
 class CMessageHeader
 {
 public:
-    static constexpr size_t MESSAGE_START_SIZE = 4;
-    static constexpr size_t COMMAND_SIZE = 12;
-    static constexpr size_t MESSAGE_SIZE_SIZE = 4;
-    static constexpr size_t CHECKSUM_SIZE = 4;
-    static constexpr size_t MESSAGE_SIZE_OFFSET = MESSAGE_START_SIZE + COMMAND_SIZE;
-    static constexpr size_t CHECKSUM_OFFSET = MESSAGE_SIZE_OFFSET + MESSAGE_SIZE_SIZE;
-    static constexpr size_t HEADER_SIZE = MESSAGE_START_SIZE + COMMAND_SIZE + MESSAGE_SIZE_SIZE + CHECKSUM_SIZE;
     typedef unsigned char MessageStartChars[MESSAGE_START_SIZE];
 
-    explicit CMessageHeader(const MessageStartChars& pchMessageStartIn);
+    CMessageHeader(const MessageStartChars& pchMessageStartIn);
     CMessageHeader(const MessageStartChars& pchMessageStartIn, const char* pszCommand, unsigned int nMessageSizeIn);
 
     std::string GetCommand() const;
@@ -46,14 +40,25 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
-        READWRITE(pchMessageStart);
-        READWRITE(pchCommand);
+        READWRITE(FLATDATA(pchMessageStart));
+        READWRITE(FLATDATA(pchCommand));
         READWRITE(nMessageSize);
-        READWRITE(pchChecksum);
+        READWRITE(FLATDATA(pchChecksum));
     }
 
+    // TODO: make private (improves encapsulation)
+public:
+    enum {
+        COMMAND_SIZE = 12,
+        MESSAGE_SIZE_SIZE = 4,
+        CHECKSUM_SIZE = 4,
+
+        MESSAGE_SIZE_OFFSET = MESSAGE_START_SIZE + COMMAND_SIZE,
+        CHECKSUM_OFFSET = MESSAGE_SIZE_OFFSET + MESSAGE_SIZE_SIZE,
+        HEADER_SIZE = MESSAGE_START_SIZE + COMMAND_SIZE + MESSAGE_SIZE_SIZE + CHECKSUM_SIZE
+    };
     char pchMessageStart[MESSAGE_START_SIZE];
     char pchCommand[COMMAND_SIZE];
     uint32_t nMessageSize;
@@ -159,9 +164,16 @@ extern const char *PING;
  */
 extern const char *PONG;
 /**
+ * The alert message warns nodes of problems that may affect them or the rest
+ * of the network.
+ * @since protocol version 311.
+ * @see https://bitcoin.org/en/developer-reference#alert
+ */
+extern const char *ALERT;
+/**
  * The notfound message is a reply to a getdata message which requested an
  * object the receiving node does not have available for relay.
- * @since protocol version 70001.
+ * @ince protocol version 70001.
  * @see https://bitcoin.org/en/developer-reference#notfound
  */
 extern const char *NOTFOUND;
@@ -206,38 +218,32 @@ extern const char *REJECT;
  * @see https://bitcoin.org/en/developer-reference#sendheaders
  */
 extern const char *SENDHEADERS;
-/**
- * The feefilter message tells the receiving peer not to inv us any txs
- * which do not meet the specified min fee rate.
- * @since protocol version 70013 as described by BIP133
- */
-extern const char *FEEFILTER;
-/**
- * Contains a 1-byte bool and 8-byte LE version number.
- * Indicates that a node is willing to provide blocks via "cmpctblock" messages.
- * May indicate that a node prefers to receive new block announcements via a
- * "cmpctblock" message rather than an "inv", depending on message contents.
- * @since protocol version 70014 as described by BIP 152
- */
-extern const char *SENDCMPCT;
-/**
- * Contains a CBlockHeaderAndShortTxIDs object - providing a header and
- * list of "short txids".
- * @since protocol version 70014 as described by BIP 152
- */
-extern const char *CMPCTBLOCK;
-/**
- * Contains a BlockTransactionsRequest
- * Peer should respond with "blocktxn" message.
- * @since protocol version 70014 as described by BIP 152
- */
-extern const char *GETBLOCKTXN;
-/**
- * Contains a BlockTransactions.
- * Sent in response to a "getblocktxn" message.
- * @since protocol version 70014 as described by BIP 152
- */
-extern const char *BLOCKTXN;
+
+// CharyCoin message types
+// NOTE: do NOT declare non-implmented here, we don't want them to be exposed to the outside
+// TODO: add description
+extern const char *TXLOCKREQUEST;
+extern const char *TXLOCKVOTE;
+extern const char *SPORK;
+extern const char *GETSPORKS;
+extern const char *MASTERNODEPAYMENTVOTE;
+extern const char *MASTERNODEPAYMENTSYNC;
+extern const char *MNANNOUNCE;
+extern const char *MNPING;
+extern const char *DSACCEPT;
+extern const char *DSVIN;
+extern const char *DSFINALTX;
+extern const char *DSSIGNFINALTX;
+extern const char *DSCOMPLETE;
+extern const char *DSSTATUSUPDATE;
+extern const char *DSTX;
+extern const char *DSQUEUE;
+extern const char *DSEG;
+extern const char *SYNCSTATUSCOUNT;
+extern const char *MNGOVERNANCESYNC;
+extern const char *MNGOVERNANCEOBJECT;
+extern const char *MNGOVERNANCEOBJECTVOTE;
+extern const char *MNVERIFY;
 };
 
 /* Get a vector of all valid message types (see above) */
@@ -247,27 +253,18 @@ const std::vector<std::string> &getAllNetMessageTypes();
 enum ServiceFlags : uint64_t {
     // Nothing
     NODE_NONE = 0,
-    // NODE_NETWORK means that the node is capable of serving the complete block chain. It is currently
-    // set by all Bitcoin Core non pruned nodes, and is unset by SPV clients or other light clients.
+    // NODE_NETWORK means that the node is capable of serving the block chain. It is currently
+    // set by all CharyCoin Core nodes, and is unset by SPV clients or other peers that just want
+    // network services but don't provide them.
     NODE_NETWORK = (1 << 0),
     // NODE_GETUTXO means the node is capable of responding to the getutxo protocol request.
-    // Bitcoin Core does not support this but a patch set called Bitcoin XT does.
+    // CharyCoin Core does not support this but a patch set called Bitcoin XT does.
     // See BIP 64 for details on how this is implemented.
     NODE_GETUTXO = (1 << 1),
     // NODE_BLOOM means the node is capable and willing to handle bloom-filtered connections.
-    // Bitcoin Core nodes used to support this by default, without advertising this bit,
-    // but no longer do as of protocol version 70011 (= NO_BLOOM_VERSION)
+    // CharyCoin Core nodes used to support this by default, without advertising this bit,
+    // but no longer do as of protocol version 70201 (= NO_BLOOM_VERSION)
     NODE_BLOOM = (1 << 2),
-    // NODE_WITNESS indicates that a node can be asked for blocks and transactions including
-    // witness data.
-    NODE_WITNESS = (1 << 3),
-    // NODE_XTHIN means the node supports Xtreme Thinblocks
-    // If this is turned off then the node will not service nor make xthin requests
-    NODE_XTHIN = (1 << 4),
-    // NODE_NETWORK_LIMITED means the same as NODE_NETWORK with the limitation of only
-    // serving the last 288 (2 day) blocks
-    // See BIP159 for details on how this is implemented.
-    NODE_NETWORK_LIMITED = (1 << 10),
 
     // Bits 24-31 are reserved for temporary experiments. Just pick a bit that
     // isn't getting used, or one not being used much, and notify the
@@ -277,52 +274,6 @@ enum ServiceFlags : uint64_t {
     // do not actually support. Other service bits should be allocated via the
     // BIP process.
 };
-
-/**
- * Gets the set of service flags which are "desirable" for a given peer.
- *
- * These are the flags which are required for a peer to support for them
- * to be "interesting" to us, ie for us to wish to use one of our few
- * outbound connection slots for or for us to wish to prioritize keeping
- * their connection around.
- *
- * Relevant service flags may be peer- and state-specific in that the
- * version of the peer may determine which flags are required (eg in the
- * case of NODE_NETWORK_LIMITED where we seek out NODE_NETWORK peers
- * unless they set NODE_NETWORK_LIMITED and we are out of IBD, in which
- * case NODE_NETWORK_LIMITED suffices).
- *
- * Thus, generally, avoid calling with peerServices == NODE_NONE, unless
- * state-specific flags must absolutely be avoided. When called with
- * peerServices == NODE_NONE, the returned desirable service flags are
- * guaranteed to not change dependent on state - ie they are suitable for
- * use when describing peers which we know to be desirable, but for which
- * we do not have a confirmed set of service flags.
- *
- * If the NODE_NONE return value is changed, contrib/seeds/makeseeds.py
- * should be updated appropriately to filter for the same nodes.
- */
-ServiceFlags GetDesirableServiceFlags(ServiceFlags services);
-
-/** Set the current IBD status in order to figure out the desirable service flags */
-void SetServiceFlagsIBDCache(bool status);
-
-/**
- * A shortcut for (services & GetDesirableServiceFlags(services))
- * == GetDesirableServiceFlags(services), ie determines whether the given
- * set of service flags are sufficient for a peer to be "relevant".
- */
-static inline bool HasAllDesirableServiceFlags(ServiceFlags services) {
-    return !(GetDesirableServiceFlags(services) & (~services));
-}
-
-/**
- * Checks if a peer with the given service flags may be capable of having a
- * robust address-storage DB.
- */
-static inline bool MayHaveUsefulAddressDB(ServiceFlags services) {
-    return (services & NODE_NETWORK) || (services & NODE_NETWORK_LIMITED);
-}
 
 /** A CService with information about it as peer */
 class CAddress : public CService
@@ -336,20 +287,19 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
         if (ser_action.ForRead())
             Init();
-        int nVersion = s.GetVersion();
-        if (s.GetType() & SER_DISK)
+        if (nType & SER_DISK)
             READWRITE(nVersion);
-        if ((s.GetType() & SER_DISK) ||
-            (nVersion >= CADDR_TIME_VERSION && !(s.GetType() & SER_GETHASH)))
+        if ((nType & SER_DISK) ||
+            (nVersion >= CADDR_TIME_VERSION && !(nType & SER_GETHASH)))
             READWRITE(nTime);
         uint64_t nServicesInt = nServices;
         READWRITE(nServicesInt);
-        nServices = static_cast<ServiceFlags>(nServicesInt);
-        READWRITEAS(CService, *this);
+        nServices = (ServiceFlags)nServicesInt;
+        READWRITE(*(CService*)this);
     }
 
     // TODO: make private (improves encapsulation)
@@ -360,38 +310,18 @@ public:
     unsigned int nTime;
 };
 
-/** getdata message type flags */
-const uint32_t MSG_WITNESS_FLAG = 1 << 30;
-const uint32_t MSG_TYPE_MASK    = 0xffffffff >> 2;
-
-/** getdata / inv message types.
- * These numbers are defined by the protocol. When adding a new value, be sure
- * to mention it in the respective BIP.
- */
-enum GetDataMsg
-{
-    UNDEFINED = 0,
-    MSG_TX = 1,
-    MSG_BLOCK = 2,
-    // The following can only occur in getdata. Invs always use TX or BLOCK.
-    MSG_FILTERED_BLOCK = 3,  //!< Defined in BIP37
-    MSG_CMPCT_BLOCK = 4,     //!< Defined in BIP152
-    MSG_WITNESS_BLOCK = MSG_BLOCK | MSG_WITNESS_FLAG, //!< Defined in BIP144
-    MSG_WITNESS_TX = MSG_TX | MSG_WITNESS_FLAG,       //!< Defined in BIP144
-    MSG_FILTERED_WITNESS_BLOCK = MSG_FILTERED_BLOCK | MSG_WITNESS_FLAG,
-};
-
 /** inv message data */
 class CInv
 {
 public:
     CInv();
     CInv(int typeIn, const uint256& hashIn);
+    CInv(const std::string& strType, const uint256& hashIn);
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
         READWRITE(type);
         READWRITE(hash);
@@ -399,13 +329,40 @@ public:
 
     friend bool operator<(const CInv& a, const CInv& b);
 
-    std::string GetCommand() const;
+    bool IsKnownType() const;
+    const char* GetCommand() const;
     std::string ToString() const;
 
     // TODO: make private (improves encapsulation)
 public:
     int type;
     uint256 hash;
+};
+
+enum {
+    MSG_TX = 1,
+    MSG_BLOCK,
+    // Nodes may always request a MSG_FILTERED_BLOCK in a getdata, however,
+    // MSG_FILTERED_BLOCK should not appear in any invs except as a part of getdata.
+    MSG_FILTERED_BLOCK,
+    // CharyCoin message types
+    // NOTE: declare non-implmented here, we must keep this enum consistent and backwards compatible
+    MSG_TXLOCK_REQUEST,
+    MSG_TXLOCK_VOTE,
+    MSG_SPORK,
+    MSG_MASTERNODE_PAYMENT_VOTE,
+    MSG_MASTERNODE_PAYMENT_BLOCK, // reusing, was MSG_MASTERNODE_SCANNING_ERROR previousely, was NOT used in 12.0
+    MSG_BUDGET_VOTE, // depreciated since 12.1
+    MSG_BUDGET_PROPOSAL, // depreciated since 12.1
+    MSG_BUDGET_FINALIZED, // depreciated since 12.1
+    MSG_BUDGET_FINALIZED_VOTE, // depreciated since 12.1
+    MSG_MASTERNODE_QUORUM, // not implemented
+    MSG_MASTERNODE_ANNOUNCE,
+    MSG_MASTERNODE_PING,
+    MSG_DSTX,
+    MSG_GOVERNANCE_OBJECT,
+    MSG_GOVERNANCE_OBJECT_VOTE,
+    MSG_MASTERNODE_VERIFY,
 };
 
 #endif // BITCOIN_PROTOCOL_H

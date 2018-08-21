@@ -1,0 +1,12 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=CharyCoin
+Comment=CharyCoin P2P Cryptocurrency
+Comment[fr]=CharyCoin, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=CharyCoin, eşten eşe kriptografik sanal para birimi
+Exec=charycoin-qt %u
+Terminal=false
+Type=Application
+Icon=charycoin128
+MimeType=x-scheme-handler/charycoin;
+Categories=Office;Finance;

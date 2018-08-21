@@ -1,0 +1,11 @@
+[Protocol]
+exec=charycoin-qt '%u'
+protocol=charycoin
+input=none
+output=none
+helper=true
+listing=
+reading=false
+writing=false
+makedir=false
+deleting=false

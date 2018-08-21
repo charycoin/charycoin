@@ -1,0 +1,6 @@
+usr/local/bin/charycoin-qt usr/bin
+share/pixmaps/charycoin32.xpm usr/share/pixmaps
+share/pixmaps/charycoin16.xpm usr/share/pixmaps
+share/pixmaps/charycoin128.png usr/share/pixmaps
+debian/charycoin-qt.desktop usr/share/applications
+debian/charycoin-qt.protocol usr/share/kde4/services/

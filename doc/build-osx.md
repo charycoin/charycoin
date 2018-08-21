@@ -1,96 +1,119 @@
-macOS Build Instructions and Notes
+Mac OS X Build Instructions and Notes
 ====================================
-The commands in this guide should be executed in a Terminal application.
-The built-in one is located in `/Applications/Utilities/Terminal.app`.
+This guide will show you how to build charycoind (headless client) for OSX.
+
+Notes
+-----
+
+* Tested on OS X 10.7 through 10.11 on 64-bit Intel processors only.
+
+* All of the commands should be executed in a Terminal application. The
+built-in one is located in `/Applications/Utilities`.
 
 Preparation
 -----------
-Install the macOS command line tools:
 
-`xcode-select --install`
+You need to install Xcode with all the options checked so that the compiler
+and everything is available in /usr not just /Developer. Xcode should be
+available on your OS X installation media, but if not, you can get the
+current version from https://developer.apple.com/xcode/. If you install
+Xcode 4.3 or later, you'll need to install its command line tools. This can
+be done in `Xcode > Preferences > Downloads > Components` and generally must
+be re-done or updated every time Xcode is updated.
 
-When the popup appears, click `Install`.
+You will also need to install [Homebrew](http://brew.sh) in order to install library
+dependencies.
 
-Then install [Homebrew](https://brew.sh).
+The installation of the actual dependencies is covered in the instructions
+sections below.
 
-Dependencies
+Instructions: Homebrew
 ----------------------
 
-    brew install automake berkeley-db4 libtool boost miniupnpc openssl pkg-config protobuf python qt libevent qrencode
+#### Install dependencies using Homebrew
 
-See [dependencies.md](dependencies.md) for a complete overview.
+    brew install autoconf automake berkeley-db4 libtool boost miniupnpc openssl pkg-config protobuf libevent qt
 
-If you want to build the disk image with `make deploy` (.dmg / optional), you need RSVG
+NOTE: Building with Qt4 is still supported, however, doing so could result in a broken UI. Therefore, building with Qt5 is recommended. Be aware that Qt5 5.7+ requires C++11 compiler support.
 
-    brew install librsvg
+### Building CharyCoin Core
 
-Berkeley DB
------------
-It is recommended to use Berkeley DB 4.8. If you have to build it yourself,
-you can use [the installation script included in contrib/](/contrib/install_db4.sh)
-like so
+1. Clone the GitHub tree to get the source code and go into the directory.
 
-```shell
-./contrib/install_db4.sh .
-```
+        git clone https://github.com/charycoin/charycoin.git
+        cd charycoin
 
-from the root of the repository.
-
-**Note**: You only need Berkeley DB if the wallet is enabled (see the section *Disable-Wallet mode* below).
-
-Build Bitcoin Core
-------------------------
-
-1. Clone the Bitcoin Core source code and cd into `bitcoin`
-
-        git clone https://github.com/bitcoin/bitcoin
-        cd bitcoin
-
-2.  Build Bitcoin Core:
-
-    Configure and build the headless Bitcoin Core binaries as well as the GUI (if Qt is found).
-
-    You can disable the GUI build by passing `--without-gui` to configure.
+2.  Build CharyCoin Core:
+    This will configure and build the headless charycoin binaries as well as the gui (if Qt is found).
+    You can disable the gui build by passing `--without-gui` to configure.
 
         ./autogen.sh
         ./configure
         make
 
-3.  It is recommended to build and run the unit tests:
+3.  It is also a good idea to build and run the unit tests:
 
         make check
 
-4.  You can also create a .dmg that contains the .app bundle (optional):
+4.  (Optional) You can also install charycoind to your path:
 
-        make deploy
+        make install
+
+Use Qt Creator as IDE
+------------------------
+You can use Qt Creator as IDE, for debugging and for manipulating forms, etc.
+Download Qt Creator from https://www.qt.io/download/. Download the "community edition" and only install Qt Creator (uncheck the rest during the installation process).
+
+1. Make sure you installed everything through Homebrew mentioned above
+2. Do a proper ./configure --enable-debug
+3. In Qt Creator do "New Project" -> Import Project -> Import Existing Project
+4. Enter "charycoin-qt" as project name, enter src/qt as location
+5. Leave the file selection as it is
+6. Confirm the "summary page"
+7. In the "Projects" tab select "Manage Kits..."
+8. Select the default "Desktop" kit and select "Clang (x86 64bit in /usr/bin)" as compiler
+9. Select LLDB as debugger (you might need to set the path to your installation)
+10. Start debugging with Qt Creator
+
+Creating a release build
+------------------------
+You can ignore this section if you are building `charycoind` for your own use.
+
+charycoind/charycoin-cli binaries are not included in the CharyCoin-Qt.app bundle.
+
+If you are building `charycoind` or `CharyCoin Core` for others, your build machine should be set up
+as follows for maximum compatibility:
+
+All dependencies should be compiled with these flags:
+
+ -mmacosx-version-min=10.7
+ -arch x86_64
+ -isysroot $(xcode-select --print-path)/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk
+
+Once dependencies are compiled, see [doc/release-process.md](release-process.md) for how the CharyCoin Core
+bundle is packaged and signed to create the .dmg disk image that is distributed.
 
 Running
 -------
 
-Bitcoin Core is now available at `./src/bitcoind`
+It's now available at `./charycoind`, provided that you are still in the `src`
+directory. We have to first create the RPC configuration file, though.
 
-Before running, it's recommended that you create an RPC configuration file.
+Run `./charycoind` to get the filename where it should be put, or just try these
+commands:
 
-    echo -e "rpcuser=bitcoinrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/Bitcoin/bitcoin.conf"
+    echo -e "rpcuser=charycoinrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/CharyCoinCore/charycoin.conf"
+    chmod 600 "/Users/${USER}/Library/Application Support/CharyCoinCore/charycoin.conf"
 
-    chmod 600 "/Users/${USER}/Library/Application Support/Bitcoin/bitcoin.conf"
+The next time you run it, it will start downloading the blockchain, but it won't
+output anything while it's doing this. This process may take several hours;
+you can monitor its process by looking at the debug.log file, like this:
 
-The first time you run bitcoind, it will start downloading the blockchain. This process could take several hours.
-
-You can monitor the download process by looking at the debug.log file:
-
-    tail -f $HOME/Library/Application\ Support/Bitcoin/debug.log
+    tail -f $HOME/Library/Application\ Support/CharyCoinCore/debug.log
 
 Other commands:
 -------
 
-    ./src/bitcoind -daemon # Starts the bitcoin daemon.
-    ./src/bitcoin-cli --help # Outputs a list of command-line options.
-    ./src/bitcoin-cli help # Outputs a list of RPC commands when the daemon is running.
-
-Notes
------
-
-* Tested on OS X 10.10 Yosemite through macOS 10.13 High Sierra on 64-bit Intel processors only.
-
-* Building with downloaded Qt binaries is not officially supported. See the notes in [#7714](https://github.com/bitcoin/bitcoin/issues/7714)
+    ./charycoind -daemon # to start the charycoin daemon.
+    ./charycoin-cli --help  # for a list of command-line options.
+    ./charycoin-cli help    # When the daemon is running, to get a list of RPC commands

@@ -1,0 +1,3 @@
+debian/manpages/charycoind.1
+debian/manpages/charycoin.conf.5
+debian/manpages/charycoin-cli.1

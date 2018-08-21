@@ -1,15 +1,15 @@
 ---
 name: "bitcoin-win-signer"
 suites:
-- "bionic"
+- "trusty"
 architectures:
 - "amd64"
 packages:
-# Once osslsigncode supports openssl 1.1, we can change this back to libssl-dev
-- "libssl1.0-dev"
+- "libssl-dev"
 - "autoconf"
+reference_datetime: "2017-01-01 00:00:00"
 remotes:
-- "url": "https://github.com/bitcoin-core/bitcoin-detached-sigs.git"
+- "url": "https://github.com/charycoin/charycoin-detached-sigs.git"
   "dir": "signature"
 files:
 - "osslsigncode-1.7.1.tar.gz"

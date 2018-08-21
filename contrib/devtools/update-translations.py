@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python
 # Copyright (c) 2014 Wladimir J. van der Laan
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -15,6 +15,7 @@ It will do the following automatically:
 TODO:
 - auto-add new translations to the build system according to the translation process
 '''
+from __future__ import division, print_function
 import subprocess
 import re
 import sys
@@ -25,24 +26,22 @@ import xml.etree.ElementTree as ET
 # Name of transifex tool
 TX = 'tx'
 # Name of source language file
-SOURCE_LANG = 'bitcoin_en.ts'
+SOURCE_LANG = 'charycoin_en.ts'
 # Directory with locale files
 LOCALE_DIR = 'src/qt/locale'
 # Minimum number of messages for translation to be considered at all
 MIN_NUM_MESSAGES = 10
-# Regexp to check for Bitcoin addresses
-ADDRESS_REGEXP = re.compile('([13]|bc1)[a-zA-Z0-9]{30,}')
 
 def check_at_repository_root():
     if not os.path.exists('.git'):
         print('No .git directory found')
         print('Execute this script at the root of the repository', file=sys.stderr)
-        sys.exit(1)
+        exit(1)
 
 def fetch_all_translations():
     if subprocess.call([TX, 'pull', '-f', '-a']):
         print('Error while fetching translations', file=sys.stderr)
-        sys.exit(1)
+        exit(1)
 
 def find_format_specifiers(s):
     '''Find all format specifiers in a string.'''
@@ -52,7 +51,10 @@ def find_format_specifiers(s):
         percent = s.find('%', pos)
         if percent < 0:
             break
-        specifiers.append(s[percent+1])
+        try:
+            specifiers.append(s[percent+1])
+        except:
+            print('Failed to get specifier')
         pos = percent+2
     return specifiers
 
@@ -66,14 +68,6 @@ def split_format_specifiers(specifiers):
         else:
             other.append(s)
 
-    # If both numeric format specifiers and "others" are used, assume we're dealing
-    # with a Qt-formatted message. In the case of Qt formatting (see https://doc.qt.io/qt-5/qstring.html#arg)
-    # only numeric formats are replaced at all. This means "(percentage: %1%)" is valid, without needing
-    # any kind of escaping that would be necessary for strprintf. Without this, this function
-    # would wrongly detect '%)' as a printf format specifier.
-    if numeric:
-        other = []
-
     # numeric (Qt) can be present in any order, others (strprintf) must be in specified order
     return set(numeric),other
 
@@ -85,7 +79,7 @@ def check_format_specifiers(source, translation, errors, numerus):
     source_f = split_format_specifiers(find_format_specifiers(source))
     # assert that no source messages contain both Qt and strprintf format specifiers
     # if this fails, go change the source as this is hacky and confusing!
-    assert(not(source_f[0] and source_f[1]))
+    #assert(not(source_f[0] and source_f[1]))
     try:
         translation_f = split_format_specifiers(find_format_specifiers(translation))
     except IndexError:
@@ -123,12 +117,6 @@ def escape_cdata(text):
     text = text.replace("'", '&apos;')
     text = text.replace('"', '&quot;')
     return text
-
-def contains_bitcoin_addr(text, errors):
-    if text != None and ADDRESS_REGEXP.search(text) != None:
-        errors.append('Translation "%s" contains a bitcoin address. This will be removed.' % (text))
-        return True
-    return False
 
 def postprocess_translations(reduce_diff_hacks=False):
     print('Checking and postprocessing...')
@@ -168,7 +156,7 @@ def postprocess_translations(reduce_diff_hacks=False):
                     if translation is None:
                         continue
                     errors = []
-                    valid = check_format_specifiers(source, translation, errors, numerus) and not contains_bitcoin_addr(translation, errors)
+                    valid = check_format_specifiers(source, translation, errors, numerus)
 
                     for error in errors:
                         print('%s: %s' % (filename, error))
@@ -210,6 +198,6 @@ def postprocess_translations(reduce_diff_hacks=False):
 
 if __name__ == '__main__':
     check_at_repository_root()
-    fetch_all_translations()
+    # fetch_all_translations()
     postprocess_translations()
 

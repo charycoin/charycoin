@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2018 The Bitcoin Core developers
+// Copyright (c) 2009-2015 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,17 +7,7 @@
 #define BITCOIN_COMPAT_H
 
 #if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
-
-#include <type_traits>
-
-// GCC 4.8 is missing some C++11 type_traits,
-// https://www.gnu.org/software/gcc/gcc-5/changes.html
-#if defined(__GNUC__) && __GNUC__ < 5
-#define IS_TRIVIALLY_CONSTRUCTIBLE std::is_trivial
-#else
-#define IS_TRIVIALLY_CONSTRUCTIBLE std::is_trivially_constructible
+#include "config/charycoin-config.h"
 #endif
 
 #ifdef WIN32
@@ -41,11 +31,9 @@
 #include <mswsock.h>
 #include <windows.h>
 #include <ws2tcpip.h>
-#include <stdint.h>
 #else
-#include <fcntl.h>
+#include <sys/fcntl.h>
 #include <sys/mman.h>
-#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <net/if.h>
@@ -58,9 +46,11 @@
 #include <unistd.h>
 #endif
 
-#ifndef WIN32
-typedef unsigned int SOCKET;
-#include <errno.h>
+#ifdef WIN32
+#define MSG_DONTWAIT        0
+#else
+typedef u_int SOCKET;
+#include "errno.h"
 #define WSAGetLastError()   errno
 #define WSAEINVAL           EINVAL
 #define WSAEALREADY         EALREADY
@@ -82,27 +72,28 @@ typedef unsigned int SOCKET;
 #else
 #define MAX_PATH            1024
 #endif
-#ifdef _MSC_VER
-#if !defined(ssize_t)
-#ifdef _WIN64
-typedef int64_t ssize_t;
-#else
-typedef int32_t ssize_t;
+
+// As Solaris does not have the MSG_NOSIGNAL flag for send(2) syscall, it is defined as 0
+#if !defined(HAVE_MSG_NOSIGNAL) && !defined(MSG_NOSIGNAL)
+#define MSG_NOSIGNAL 0
 #endif
+
+#ifndef WIN32
+// PRIO_MAX is not defined on Solaris
+#ifndef PRIO_MAX
+#define PRIO_MAX 20
 #endif
+#define THREAD_PRIORITY_LOWEST          PRIO_MAX
+#define THREAD_PRIORITY_BELOW_NORMAL    2
+#define THREAD_PRIORITY_NORMAL          0
+#define THREAD_PRIORITY_ABOVE_NORMAL    (-2)
 #endif
 
 #if HAVE_DECL_STRNLEN == 0
 size_t strnlen( const char *start, size_t max_len);
 #endif // HAVE_DECL_STRNLEN
 
-#ifndef WIN32
-typedef void* sockopt_arg_type;
-#else
-typedef char* sockopt_arg_type;
-#endif
-
-bool static inline IsSelectableSocket(const SOCKET& s) {
+bool static inline IsSelectableSocket(SOCKET s) {
 #ifdef WIN32
     return true;
 #else

@@ -1,12 +1,12 @@
-// Copyright (c) 2011-2018 The Bitcoin Core developers
+// Copyright (c) 2011-2015 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <qt/bitcoinamountfield.h>
+#include "bitcoinamountfield.h"
 
-#include <qt/bitcoinunits.h>
-#include <qt/guiconstants.h>
-#include <qt/qvaluecombobox.h>
+#include "bitcoinunits.h"
+#include "guiconstants.h"
+#include "qvaluecombobox.h"
 
 #include <QApplication>
 #include <QAbstractSpinBox>
@@ -24,12 +24,12 @@ class AmountSpinBox: public QAbstractSpinBox
 public:
     explicit AmountSpinBox(QWidget *parent):
         QAbstractSpinBox(parent),
-        currentUnit(BitcoinUnits::BTC),
+        currentUnit(BitcoinUnits::XRC),
         singleStep(100000) // satoshis
     {
         setAlignment(Qt::AlignRight);
 
-        connect(lineEdit(), &QLineEdit::textEdited, this, &AmountSpinBox::valueChanged);
+        connect(lineEdit(), SIGNAL(textEdited(QString)), this, SIGNAL(valueChanged()));
     }
 
     QValidator::State validate(QString &text, int &pos) const
@@ -99,7 +99,7 @@ public:
 
             const QFontMetrics fm(fontMetrics());
             int h = lineEdit()->minimumSizeHint().height();
-            int w = fm.width(BitcoinUnits::format(BitcoinUnits::BTC, BitcoinUnits::maxMoney(), false, BitcoinUnits::separatorAlways));
+            int w = fm.width(BitcoinUnits::format(BitcoinUnits::XRC, BitcoinUnits::maxMoney(), false, BitcoinUnits::separatorAlways));
             w += 2; // cursor blinking space
 
             QStyleOptionSpinBox opt;
@@ -188,7 +188,7 @@ Q_SIGNALS:
     void valueChanged();
 };
 
-#include <qt/bitcoinamountfield.moc>
+#include "bitcoinamountfield.moc"
 
 BitcoinAmountField::BitcoinAmountField(QWidget *parent) :
     QWidget(parent),
@@ -197,7 +197,7 @@ BitcoinAmountField::BitcoinAmountField(QWidget *parent) :
     amount = new AmountSpinBox(this);
     amount->setLocale(QLocale::c());
     amount->installEventFilter(this);
-    amount->setMaximumWidth(240);
+    amount->setMaximumWidth(170);
 
     QHBoxLayout *layout = new QHBoxLayout(this);
     layout->addWidget(amount);
@@ -213,8 +213,8 @@ BitcoinAmountField::BitcoinAmountField(QWidget *parent) :
     setFocusProxy(amount);
 
     // If one if the widgets changes, the combined content changes as well
-    connect(amount, &AmountSpinBox::valueChanged, this, &BitcoinAmountField::valueChanged);
-    connect(unit, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &BitcoinAmountField::unitChanged);
+    connect(amount, SIGNAL(valueChanged()), this, SIGNAL(valueChanged()));
+    connect(unit, SIGNAL(currentIndexChanged(int)), this, SLOT(unitChanged(int)));
 
     // Set default based on configuration
     unitChanged(unit->currentIndex());

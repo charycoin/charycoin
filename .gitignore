@@ -1,13 +1,18 @@
+*.sublime-project
+*.sublime-workspace
+todo.txt
+reset-files.bash
+
 *.tar.gz
 
 *.exe
-src/bitcoin
-src/bitcoind
-src/bitcoin-cli
-src/bitcoin-tx
-src/test/test_bitcoin
-src/test/test_bitcoin_fuzzy
-src/qt/test/test_bitcoin-qt
+src/charycoin
+src/charycoind
+src/charycoin-cli
+src/charycoin-tx
+src/test/test_charycoin
+src/qt/test/test_charycoin-qt
+src/bench/bench_charycoin
 
 # autoreconf
 Makefile.in
@@ -30,8 +35,8 @@ config.log
 config.status
 configure
 libtool
-src/config/bitcoin-config.h
-src/config/bitcoin-config.h.in
+src/config/charycoin-config.h
+src/config/charycoin-config.h.in
 src/config/stamp-h1
 share/setup.nsi
 share/qt/Info.plist
@@ -43,12 +48,7 @@ src/qt/moc_*.cpp
 src/qt/forms/ui_*.h
 
 src/qt/test/moc*.cpp
-
-src/qt/bitcoin-qt.config
-src/qt/bitcoin-qt.creator
-src/qt/bitcoin-qt.creator.user
-src/qt/bitcoin-qt.files
-src/qt/bitcoin-qt.includes
+libconftest.dylib*
 
 .deps
 .dirstamp
@@ -62,6 +62,7 @@ src/qt/bitcoin-qt.includes
 *.o
 *.o-*
 *.patch
+.charycoin
 *.a
 *.pb.cc
 *.pb.h
@@ -80,13 +81,13 @@ src/qt/bitcoin-qt.includes
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
-bitcoin-qt
-Bitcoin-Qt.app
-background.tiff*
+charycoin-qt
+CharyCoin-Qt.app
 
 # Unit-tests
 Makefile.test
-bitcoin-qt_test
+charycoin-qt_test
+src/test/buildenv.py
 
 # Resources cpp
 qrc_*.cpp
@@ -99,7 +100,7 @@ build
 *.gcno
 *.gcda
 /*.info
-test_bitcoin.coverage/
+test_charycoin.coverage/
 total.coverage/
 coverage_percent.txt
 
@@ -107,12 +108,28 @@ coverage_percent.txt
 linux-coverage-build
 linux-build
 win32-build
-test/config.ini
-test/cache/*
+qa/pull-tester/run-bitcoind-for-test.sh
+qa/pull-tester/tests_config.py
+qa/pull-tester/cache/*
+qa/pull-tester/test.*/*
+qa/tmp
+cache/
+share/BitcoindComparisonTool.jar
 
 !src/leveldb*/Makefile
 
+.cproject
+.project
+.autotools
 /doc/doxygen/
 
-libbitcoinconsensus.pc
-contrib/devtools/split-debug.sh
+libcharycoinconsensus.pc
+src/qt/charycoin-qt.bash
+qa/pull-tester/tests-config.sh
+
+#development symlinks
+charycoin-cli
+charycoind
+charycoin-qt
+make
+/.vscode/

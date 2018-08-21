@@ -1,0 +1,22 @@
+[Unit]
+Description=CharyCoin's distributed currency daemon
+After=network.target
+
+[Service]
+User=charycoincore
+Group=charycoincore
+
+Type=forking
+PIDFile=/var/lib/charycoind/charycoind.pid
+ExecStart=/usr/bin/charycoind -daemon -pid=/var/lib/charycoind/charycoind.pid \
+-conf=/etc/charycoincore/charycoin.conf -datadir=/var/lib/charycoind -disablewallet
+
+Restart=always
+PrivateTmp=true
+TimeoutStopSec=60s
+TimeoutStartSec=2s
+StartLimitInterval=120s
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target
